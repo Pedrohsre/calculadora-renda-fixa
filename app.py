@@ -127,9 +127,9 @@ def main():
                 valor_investir = st.number_input(
                     "Valor a Investir (R$):",
                     min_value=float(info_titulo.get('investimento_minimo', 30.0)),
-                    value=10000.0,
-                    step=100.0,
-                    help="Digite o valor que deseja investir"
+                    value=1000.0,
+                    step=10.0,
+                    help="Digite o valor que deseja investir (mínimo: fração de 0,01 título)"
                 )
                 
                 # Data de compra
@@ -183,10 +183,16 @@ def main():
                     info_titulo.get('preco_compra', 1000)
                 )
                 
-                st.success(
-                    f"**Você poderá comprar:** {quantidade} título(s)\n\n"
-                    f"**Valor total investido:** {formatar_moeda(valor_real)}"
-                )
+                if quantidade > 0:
+                    st.success(
+                        f"**Você poderá comprar:** {quantidade:.2f} título(s)\n\n"
+                        f"**Equivalente a:** {quantidade * 100:.0f}% de {1 if quantidade < 1 else int(quantidade)} título(s)\n\n"
+                        f"**Valor total investido:** {formatar_moeda(valor_real)}"
+                    )
+                else:
+                    st.error(
+                        f"⚠️ Valor insuficiente! O investimento mínimo é {formatar_moeda(info_titulo.get('investimento_minimo', 0))}"
+                    )
                 
                 # Botão de calcular
                 if st.button("Calcular Retorno", type="primary", use_container_width=True):

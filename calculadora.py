@@ -147,21 +147,23 @@ class CalculadoraInvestimentos:
         self,
         valor_investido: float,
         preco_titulo: float
-    ) -> Tuple[int, float]:
+    ) -> Tuple[float, float]:
         """
         Calcula a quantidade de títulos que podem ser comprados
+        Permite frações de títulos (mínimo 0,01 = 1% do título)
         
         Args:
             valor_investido: Valor disponível para investir
             preco_titulo: Preço unitário do título
             
         Returns:
-            Tupla com (quantidade de títulos, valor total investido)
+            Tupla com (quantidade de títulos em fração, valor total investido)
         """
         if preco_titulo <= 0:
-            return 0, 0
+            return 0.0, 0.0
         
-        quantidade = int(valor_investido / preco_titulo)
+        # Calcula quantidade com 2 casas decimais (mínimo: 0,01 título = 1%)
+        quantidade = round(valor_investido / preco_titulo, 2)
         valor_total = quantidade * preco_titulo
         
         return quantidade, valor_total
