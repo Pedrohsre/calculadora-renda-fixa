@@ -12,26 +12,26 @@ Esta é uma ferramenta gratuita que ajuda você a **calcular quanto seu dinheiro
 
 ## O que você pode fazer com esta calculadora?
 
-### 1️⃣ Simular Investimento no Tesouro Direto
+### Simular Investimento no Tesouro Direto
 - Escolha qualquer título público disponível (Selic, IPCA+, Prefixado, Renda+, etc.)
 - Veja quanto você vai receber no vencimento
 - Calcule o desconto de Imposto de Renda automaticamente
 - Simule resgate antecipado (e veja se vai pagar IOF)
 - Descubra o valor real da taxa de custódia B3
 
-### 2️⃣ Comparar Investimentos
+### Comparar Investimentos
 - Compare lado a lado: **Poupança vs CDB vs LCI/LCA vs Tesouro Direto**
 - Veja qual investimento rende mais para seu perfil
 - Entenda o impacto do Imposto de Renda
 - Personalize as taxas (CDI, percentual do CDB, etc.)
 
-### 3️⃣ Ver Todos os Títulos Disponíveis
+### Ver Todos os Títulos Disponíveis
 - Lista completa com 60+ títulos públicos
 - Preços e taxas atualizados diariamente
 - Filtre por tipo (Selic, IPCA+, Prefixado, etc.)
 - Compare as taxas em gráficos visuais
 
-### 4️⃣ Simular Aportes Mensais
+### Simular Aportes Mensais
 - Planeje investimentos recorrentes
 - Veja quanto você terá em 5, 10 ou 20 anos
 - Acompanhe a evolução mês a mês
@@ -77,6 +77,7 @@ streamlit run app.py
 
 **Pronto!** Sua calculadora abrirá automaticamente no navegador em: **http://localhost:8501**
 
+**Ou** acesse em: **https://calculadora-rendafixa.streamlit.app/**
 ---
 
 ## Como usar cada funcionalidade?
