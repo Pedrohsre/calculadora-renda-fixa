@@ -20,7 +20,8 @@ class CalculadoraInvestimentos:
         taxa_anual: float,
         data_compra: datetime,
         data_vencimento: datetime,
-        tipo_titulo: str = "prefixado"
+        tipo_titulo: str = "prefixado",
+        ipca_projetado: float = 5.0
     ) -> Dict:
         """
         Calcula o valor futuro do investimento
@@ -31,6 +32,7 @@ class CalculadoraInvestimentos:
             data_compra: Data da compra
             data_vencimento: Data de vencimento do título
             tipo_titulo: Tipo do título (prefixado, selic, ipca)
+            ipca_projetado: Projeção de IPCA anual (%) para títulos IPCA+
             
         Returns:
             Dicionário com informações do investimento
@@ -47,10 +49,10 @@ class CalculadoraInvestimentos:
             # Para Tesouro Selic, usa capitalização diária
             valor_futuro_bruto = valor_investido * math.pow((1 + taxa_decimal), anos)
         elif tipo_titulo.lower() in ['tesouro ipca+', 'ipca', 'tesouro ipca']:
-            # Para Tesouro IPCA+, considera a taxa real + inflação estimada
-            # Aqui vamos usar uma inflação estimada de 4% ao ano
-            inflacao_estimada = 0.04
-            taxa_total = (1 + taxa_decimal) * (1 + inflacao_estimada) - 1
+            # Para Tesouro IPCA+, considera a taxa real + inflação projetada
+            # Taxa final = (1 + taxa_real) * (1 + IPCA) - 1
+            inflacao_decimal = ipca_projetado / 100
+            taxa_total = (1 + taxa_decimal) * (1 + inflacao_decimal) - 1
             valor_futuro_bruto = valor_investido * math.pow((1 + taxa_total), anos)
         else:
             # Para Tesouro Prefixado

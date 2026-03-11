@@ -47,6 +47,13 @@ def carregar_dados_titulos():
     return api.buscar_titulos_tesouro_direto()
 
 
+@st.cache_data(ttl=3600)  # Cache por 1 hora
+def carregar_projecao_ipca():
+    """Carrega projeção de IPCA do Banco Central"""
+    api = TesouroAPI()
+    return api.buscar_projecao_ipca()
+
+
 def formatar_moeda(valor):
     """Formata valor como moeda brasileira"""
     return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -64,6 +71,9 @@ def main():
     # Carrega dados dos títulos
     with st.spinner("Carregando dados dos títulos públicos..."):
         df_titulos = carregar_dados_titulos()
+    
+    # Carrega projeção de IPCA
+    ipca_projetado = carregar_projecao_ipca()
     
     # Verifica se os dados foram carregados com sucesso
     if df_titulos.empty:
@@ -90,7 +100,17 @@ def main():
         "**Fonte de Dados:**\n"
         "Tesouro Direto - API Pública\n\n"
         "**Atualização:**\n"
-        f"{datetime.now().strftime('%d/%m/%Y %H:%M')}"
+        f"{datetime.now().strftime('%d/%m/%Y %H:%M')}\n\n"
+        "**Projeção IPCA (BCB Focus):**\n"
+        f"{ipca_projetado:.2f}% a.a."
+    )
+    
+    st.sidebar.warning(
+        "**Limitações da API:**\n\n"
+        "• **Arredondamento:** As taxas são arredondadas (2 casas decimais)\n\n"
+        "• **Defasagem:** Dados atualizados com **1 dia de atraso**\n\n"
+        "• **Fonte oficial:** [Tesouro Transparente]"
+        "(https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv)"
     )
     
     # ===== FUNCIONALIDADE 1: SIMULADOR DE INVESTIMENTO =====
@@ -194,6 +214,14 @@ def main():
                         f"⚠️ Valor insuficiente! O investimento mínimo é {formatar_moeda(info_titulo.get('investimento_minimo', 0))}"
                     )
                 
+                # Info sobre cálculo automático da taxa Selic
+                if 'Selic' in info_titulo.get('tipo', ''):
+                    st.info(
+                        "ℹ️ **Taxa com Selic em tempo real:** A rentabilidade exibida já inclui "
+                        "automaticamente a taxa Selic atual (obtida do Banco Central) somada ao "
+                        "spread do título informado pelo Tesouro Direto."
+                    )
+                
                 # Botão de calcular
                 if st.button("Calcular Retorno", type="primary", use_container_width=True):
                     # Calcula o valor futuro
@@ -202,11 +230,14 @@ def main():
                         taxa_anual=info_titulo.get('taxa_compra', 10),
                         data_compra=datetime.combine(data_compra, datetime.min.time()),
                         data_vencimento=data_final,
-                        tipo_titulo=info_titulo.get('tipo', 'prefixado')
+                        tipo_titulo=info_titulo.get('tipo', 'prefixado'),
+                        ipca_projetado=ipca_projetado
                     )
                     
-                    # Armazena resultado na sessão
+                    # Armazena resultado e informações do título na sessão
                     st.session_state['resultado'] = resultado
+                    st.session_state['tipo_titulo'] = info_titulo.get('tipo', '')
+                    st.session_state['taxa_original'] = info_titulo.get('taxa_compra', 0)
         
         with col2:
             st.subheader("Resultado da Simulação")

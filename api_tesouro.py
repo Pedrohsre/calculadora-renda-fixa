@@ -16,6 +16,61 @@ class TesouroAPI:
     def __init__(self):
         # URL do CSV unificado com todos os títulos (atualizado diariamente)
         self.csv_url = "https://www.tesourotransparente.gov.br/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv"
+        # URL da API do Banco Central para taxa Selic meta (anualizada)
+        # Série 432: Taxa Selic meta fixada pelo COPOM
+        self.bcb_selic_url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.432/dados/ultimos/1?formato=json"
+        # URL da API do Banco Central para projeção de IPCA (Focus)
+        # Série 13522: Expectativa IPCA para 12 meses à frente
+        self.bcb_ipca_url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.13522/dados/ultimos/1?formato=json"
+    
+    def buscar_taxa_selic(self) -> float:
+        """
+        Busca a taxa Selic atual (meta) da API do Banco Central do Brasil
+        
+        Returns:
+            Taxa Selic anual em percentual (ex: 14.90 para 14.90% a.a.)
+        """
+        try:
+            response = requests.get(self.bcb_selic_url, timeout=10)
+            response.raise_for_status()
+            dados = response.json()
+            
+            if dados and len(dados) > 0:
+                taxa_selic = float(dados[0]['valor'])
+                print(f"  Taxa Selic (BCB): {taxa_selic:.2f}% a.a.")
+                return taxa_selic
+            else:
+                print("  Aviso: Não foi possível obter taxa Selic do BCB")
+                return 0.0
+                
+        except Exception as e:
+            print(f"  Aviso: Erro ao buscar taxa Selic do BCB: {e}")
+            return 0.0
+    
+    def buscar_projecao_ipca(self) -> float:
+        """
+        Busca a projeção de IPCA da API do Banco Central do Brasil (Relatório Focus)
+        
+        Returns:
+            Projeção de IPCA anual em percentual (ex: 5.50 para 5.50% a.a.)
+        """
+        try:
+            response = requests.get(self.bcb_ipca_url, timeout=10)
+            response.raise_for_status()
+            dados = response.json()
+            
+            if dados and len(dados) > 0:
+                ipca_projetado = float(dados[0]['valor'])
+                print(f"  Projeção IPCA (BCB Focus): {ipca_projetado:.2f}% a.a.")
+                return ipca_projetado
+            else:
+                print("  Aviso: Não foi possível obter projeção IPCA, usando 5.0% padrão")
+                return 5.0
+                
+        except Exception as e:
+            print(f"  Aviso: Erro ao buscar projeção IPCA do BCB: {e}")
+            print("  Usando IPCA padrão de 5.0% a.a.")
+            return 5.0
         
     def buscar_titulos_tesouro_direto(self) -> pd.DataFrame:
         """
@@ -44,6 +99,9 @@ class TesouroAPI:
             
             print(f"  Data dos dados: {data_mais_recente.strftime('%d/%m/%Y')}")
             
+            # Buscar taxa Selic atual do BCB para ajustar taxas do Tesouro Selic
+            taxa_selic_bcb = self.buscar_taxa_selic()
+            
             # Padronizar os nomes das colunas e estrutura de dados
             titulos = []
             for _, row in df_recente.iterrows():
@@ -57,6 +115,17 @@ class TesouroAPI:
                     nome_titulo = row.get('Tipo Titulo', 'Título')
                     vencimento_str = row.get('Data Vencimento', '')
                 
+                # Obter taxas base do CSV
+                taxa_compra_csv = self._converter_para_float(row.get('Taxa Compra Manha'))
+                taxa_venda_csv = self._converter_para_float(row.get('Taxa Venda Manha'))
+                
+                # Para Tesouro Selic, somar a taxa Selic atual (BCB) com o spread do CSV
+                if 'Selic' in tipo_titulo and taxa_selic_bcb > 0:
+                    if taxa_compra_csv is not None:
+                        taxa_compra_csv += taxa_selic_bcb
+                    if taxa_venda_csv is not None:
+                        taxa_venda_csv += taxa_selic_bcb
+                
                 titulo = {
                     'nome': nome_titulo,
                     'codigo': row.get('Tipo Titulo', ''),
@@ -64,8 +133,8 @@ class TesouroAPI:
                     'tipo': row.get('Tipo Titulo', ''),
                     'preco_compra': self._converter_para_float(row.get('PU Compra Manha')),
                     'preco_venda': self._converter_para_float(row.get('PU Venda Manha')),
-                    'taxa_compra': self._converter_para_float(row.get('Taxa Compra Manha')),
-                    'taxa_venda': self._converter_para_float(row.get('Taxa Venda Manha')),
+                    'taxa_compra': taxa_compra_csv,
+                    'taxa_venda': taxa_venda_csv,
                     'investimento_minimo': None,  # Será calculado depois se necessário
                 }
                 
