@@ -420,7 +420,8 @@ def main():
                         cdi_atual=cdi_atual,
                         percentual_cdb=percentual_cdb,
                         percentual_lci=percentual_lci,
-                        taxa_tesouro=taxa_tesouro
+                        taxa_tesouro=taxa_tesouro,
+                        aporte_mensal=aporte_mensal
                     )
                     st.session_state['comparacao'] = comparacao
                 
@@ -452,9 +453,9 @@ def main():
                             border-radius: 5px;
                             margin-bottom: 10px;
                         '>
-                            <h4 style='margin: 0; color: #333;'>{nome}</h4>
-                            <h2 style='margin: 10px 0; color: {cor};'>{formatar_moeda(valor_final)}</h2>
-                            <p style='margin: 0; color: #666; font-size: 14px;'>
+                            <h4 style='margin: 0; color: #CCCCCC;'>{nome}</h4>
+                            <h2 style='margin: 10px 0; color: white;'>{formatar_moeda(valor_final)}</h2>
+                            <p style='margin: 0; color: #AAAAAA; font-size: 14px;'>
                                 <strong>+{rentabilidade:.2f}%</strong>
                             </p>
                         </div>

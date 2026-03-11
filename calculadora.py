@@ -229,18 +229,20 @@ class CalculadoraInvestimentos:
         cdi_atual: float = 14.9,
         percentual_cdb: float = 100.0,
         percentual_lci: float = 90.0,
-        taxa_tesouro: float = 14.0
+        taxa_tesouro: float = 14.0,
+        aporte_mensal: float = 0.0
     ) -> Dict:
         """
         Compara diferentes tipos de investimentos de renda fixa
         
         Args:
-            valor_investido: Valor a ser investido
+            valor_investido: Valor inicial a ser investido
             meses: Período em meses
             cdi_atual: Taxa CDI atual (% a.a.)
             percentual_cdb: Percentual do CDI para CDB (%)
             percentual_lci: Percentual do CDI para LCI/LCA (%)
             taxa_tesouro: Taxa do Tesouro Direto (% a.a.)
+            aporte_mensal: Valor do aporte mensal (padrão 0.0)
             
         Returns:
             Dicionário com resultados de cada tipo de investimento
@@ -248,45 +250,105 @@ class CalculadoraInvestimentos:
         anos = meses / 12
         dias_corridos = int(meses * 30.42)  # Média de dias por mês
         
+        # Calcula valor total investido (inicial + aportes)
+        valor_total_investido = valor_investido + (aporte_mensal * meses)
+        
         # 1. POUPANÇA (0,5% a.m. + TR, simplificado para 6,17% a.a. atualmente)
         taxa_poupanca = 6.17  # Taxa aproximada atual da poupança
+        taxa_mensal_poupanca = (math.pow(1 + taxa_poupanca/100, 1/12) - 1)
+        
+        # Calcula montante inicial
         vf_poupanca = valor_investido * math.pow((1 + taxa_poupanca/100), anos)
-        lucro_poupanca = vf_poupanca - valor_investido
+        
+        # Adiciona aportes mensais (série de pagamentos)
+        if aporte_mensal > 0:
+            for mes in range(1, meses + 1):
+                meses_restantes = meses - mes
+                vf_poupanca += aporte_mensal * math.pow((1 + taxa_mensal_poupanca), meses_restantes)
+        
+        lucro_poupanca = vf_poupanca - valor_total_investido
         # Poupança é isenta de IR
         
         # 2. CDB (tributado)
         taxa_cdb = cdi_atual * (percentual_cdb / 100)
+        taxa_mensal_cdb = (math.pow(1 + taxa_cdb/100, 1/12) - 1)
+        
+        # Calcula montante inicial
         vf_cdb_bruto = valor_investido * math.pow((1 + taxa_cdb/100), anos)
-        lucro_cdb = vf_cdb_bruto - valor_investido
-        ir_cdb = self.calcular_ir(lucro_cdb, dias_corridos)
-        vf_cdb_liquido = vf_cdb_bruto - ir_cdb
+        lucro_inicial = vf_cdb_bruto - valor_investido
+        
+        # Adiciona aportes mensais com seus respectivos impostos
+        lucro_aportes = 0
+        if aporte_mensal > 0:
+            for mes in range(1, meses + 1):
+                meses_restantes = meses - mes
+                dias_aporte = int(meses_restantes * 30.42)
+                vf_aporte = aporte_mensal * math.pow((1 + taxa_mensal_cdb), meses_restantes)
+                lucro_aporte = vf_aporte - aporte_mensal
+                ir_aporte = self.calcular_ir(lucro_aporte, dias_aporte)
+                vf_cdb_bruto += vf_aporte
+                lucro_aportes += (lucro_aporte - ir_aporte)
+        
+        # IR sobre lucro inicial
+        ir_inicial = self.calcular_ir(lucro_inicial, dias_corridos)
+        lucro_cdb = lucro_inicial + lucro_aportes
+        ir_cdb = ir_inicial + (lucro_cdb - lucro_inicial - lucro_aportes + self.calcular_ir(lucro_aportes, dias_corridos) if aporte_mensal > 0 else 0)
+        vf_cdb_liquido = valor_total_investido + lucro_cdb
         
         # 3. LCI/LCA (isento de IR)
         taxa_lci = cdi_atual * (percentual_lci / 100)
+        taxa_mensal_lci = (math.pow(1 + taxa_lci/100, 1/12) - 1)
+        
+        # Calcula montante inicial
         vf_lci = valor_investido * math.pow((1 + taxa_lci/100), anos)
-        lucro_lci = vf_lci - valor_investido
+        
+        # Adiciona aportes mensais
+        if aporte_mensal > 0:
+            for mes in range(1, meses + 1):
+                meses_restantes = meses - mes
+                vf_lci += aporte_mensal * math.pow((1 + taxa_mensal_lci), meses_restantes)
+        
+        lucro_lci = vf_lci - valor_total_investido
         # LCI é isento de IR
         
         # 4. TESOURO DIRETO (com IR e custódia)
+        taxa_mensal_tesouro = (math.pow(1 + taxa_tesouro/100, 1/12) - 1)
+        
+        # Calcula montante inicial
         vf_tesouro_bruto = valor_investido * math.pow((1 + taxa_tesouro/100), anos)
-        lucro_tesouro = vf_tesouro_bruto - valor_investido
-        ir_tesouro = self.calcular_ir(lucro_tesouro, dias_corridos)
-        custodia_tesouro = self.calcular_custodia_b3(valor_investido, anos)
+        lucro_inicial_tesouro = vf_tesouro_bruto - valor_investido
+        
+        # Adiciona aportes mensais com seus respectivos impostos
+        lucro_aportes_tesouro = 0
+        if aporte_mensal > 0:
+            for mes in range(1, meses + 1):
+                meses_restantes = meses - mes
+                dias_aporte = int(meses_restantes * 30.42)
+                vf_aporte = aporte_mensal * math.pow((1 + taxa_mensal_tesouro), meses_restantes)
+                lucro_aporte = vf_aporte - aporte_mensal
+                ir_aporte = self.calcular_ir(lucro_aporte, dias_aporte)
+                vf_tesouro_bruto += vf_aporte
+                lucro_aportes_tesouro += (lucro_aporte - ir_aporte)
+        
+        lucro_tesouro = lucro_inicial_tesouro + lucro_aportes_tesouro
+        ir_inicial_tesouro = self.calcular_ir(lucro_inicial_tesouro, dias_corridos)
+        ir_tesouro = ir_inicial_tesouro + (self.calcular_ir(lucro_aportes_tesouro, dias_corridos) if aporte_mensal > 0 else 0)
+        custodia_tesouro = self.calcular_custodia_b3(valor_total_investido, anos)
         vf_tesouro_liquido = vf_tesouro_bruto - ir_tesouro - custodia_tesouro
         
         return {
             'poupanca': {
                 'valor_final': vf_poupanca,
                 'lucro': lucro_poupanca,
-                'rentabilidade': ((vf_poupanca / valor_investido) - 1) * 100,
+                'rentabilidade': ((vf_poupanca / valor_total_investido) - 1) * 100,
                 'taxa': taxa_poupanca,
                 'ir': 0,
                 'outras_taxas': 0
             },
             'cdb': {
                 'valor_final': vf_cdb_liquido,
-                'lucro': lucro_cdb - ir_cdb,
-                'rentabilidade': ((vf_cdb_liquido / valor_investido) - 1) * 100,
+                'lucro': lucro_cdb,
+                'rentabilidade': ((vf_cdb_liquido / valor_total_investido) - 1) * 100,
                 'taxa': taxa_cdb,
                 'ir': ir_cdb,
                 'outras_taxas': 0
@@ -294,7 +356,7 @@ class CalculadoraInvestimentos:
             'lci': {
                 'valor_final': vf_lci,
                 'lucro': lucro_lci,
-                'rentabilidade': ((vf_lci / valor_investido) - 1) * 100,
+                'rentabilidade': ((vf_lci / valor_total_investido) - 1) * 100,
                 'taxa': taxa_lci,
                 'ir': 0,
                 'outras_taxas': 0
@@ -302,12 +364,14 @@ class CalculadoraInvestimentos:
             'tesouro': {
                 'valor_final': vf_tesouro_liquido,
                 'lucro': lucro_tesouro - ir_tesouro - custodia_tesouro,
-                'rentabilidade': ((vf_tesouro_liquido / valor_investido) - 1) * 100,
+                'rentabilidade': ((vf_tesouro_liquido / valor_total_investido) - 1) * 100,
                 'taxa': taxa_tesouro,
                 'ir': ir_tesouro,
                 'outras_taxas': custodia_tesouro
             },
             'valor_investido': valor_investido,
+            'aporte_mensal': aporte_mensal,
+            'valor_total_investido': valor_total_investido,
             'periodo_meses': meses,
             'periodo_anos': anos
         }
